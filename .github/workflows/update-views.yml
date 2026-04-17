@@ -11,6 +11,8 @@ permissions:
 jobs:
   update-views:
     runs-on: ubuntu-latest
+    env:
+      PROJECT_DIR: views-kit
 
     steps:
       - name: Checkout
@@ -21,20 +23,30 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Detect project directory
+        run: |
+          if [ -f "views-kit/scripts/update-views.js" ]; then
+            echo "PROJECT_DIR=views-kit" >> "$GITHUB_ENV"
+          elif [ -f "scripts/update-views.js" ]; then
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          else
+            echo "Cannot find scripts/update-views.js in repo root or views-kit/"
+            exit 1
+          fi
+
       - name: Run updater
-        working-directory: views-kit
         env:
           YANDEX_TOKEN: ${{ secrets.YANDEX_TOKEN }}
           YANDEX_COUNTER_ID: ${{ secrets.YANDEX_COUNTER_ID }}
-        run: node scripts/update-views.js
+        run: node "$PROJECT_DIR/scripts/update-views.js"
 
       - name: Commit and push if changed
         run: |
-          if git diff --quiet views-kit/views.json; then
+          if git diff --quiet "$PROJECT_DIR/views.json"; then
             echo "No changes in views.json"
             exit 0
           fi
-          git add views-kit/views.json
+          git add "$PROJECT_DIR/views.json"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update views.json from Yandex Metrika"
